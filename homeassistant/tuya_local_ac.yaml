@@ -1,0 +1,101 @@
+# Reference tuya-local device profile for a Sendo / generic Tuya wall-split AC
+# (Tuya protocol 3.3). Most Tuya ACs are auto-detected by tuya-local, so you
+# usually do NOT need this file — just add the integration and enter your
+# host / device id / local key. Use this only if your unit isn't recognised,
+# or if temperature or fan values come out wrong.
+#
+# Install: drop this in  custom_components/tuya_local/devices/  on your HA box,
+# restart Home Assistant, then add the device and pick "Air conditioner (Sendo)".
+#
+# Datapoints (from `ac raw`):
+#   1  power (bool)      2  target temp (×10)   3  current temp (×10)
+#   4  mode (string)     5  fan speed (string)  8  eco (bool)   102 sleep (bool)
+name: Air conditioner (Sendo)
+products:
+  - id: keyu9chjxfq5ydc8
+    manufacturer: Sendo
+    model: Smart AC
+entities:
+  - entity: climate
+    dps:
+      - id: 1
+        name: hvac_mode
+        type: boolean
+        mapping:
+          - dps_val: false
+            value: "off"
+          - dps_val: true
+            constraint: mode
+            conditions:
+              - dps_val: auto
+                value: heat_cool
+              - dps_val: cold
+                value: cool
+              - dps_val: hot
+                value: heat
+              - dps_val: wet
+                value: dry
+              - dps_val: wind
+                value: fan_only
+      - id: 2
+        name: temperature
+        type: integer
+        range:
+          min: 160
+          max: 320
+        mapping:
+          - scale: 10
+            step: 10
+      - id: 3
+        name: current_temperature
+        type: integer
+        mapping:
+          - scale: 10
+      - id: 4
+        name: mode
+        type: string
+        hidden: true
+      - id: 5
+        name: fan_mode
+        type: string
+        mapping:
+          - dps_val: mute
+            value: quiet
+          - dps_val: low
+            value: low
+          - dps_val: mid_low
+            value: medlow
+          - dps_val: mid
+            value: medium
+          - dps_val: mid_high
+            value: medhigh
+          - dps_val: high
+            value: high
+          - dps_val: strength
+            value: strong
+          - dps_val: auto
+            value: auto
+      - id: 19
+        name: temperature_unit
+        type: string
+        mapping:
+          - dps_val: c
+            value: C
+          - dps_val: f
+            value: F
+  - entity: switch
+    name: Eco
+    category: config
+    icon: "mdi:leaf"
+    dps:
+      - id: 8
+        name: switch
+        type: boolean
+  - entity: switch
+    name: Sleep
+    category: config
+    icon: "mdi:power-sleep"
+    dps:
+      - id: 102
+        name: switch
+        type: boolean

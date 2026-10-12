@@ -1,0 +1,16 @@
+# Secrets — never commit your real device config
+config.json
+.config/
+
+# Build artifacts
+SendoAC
+*.app/
+*.o
+*.swiftmodule
+
+# Superseded prototypes (kept locally, not part of the project)
+menubar.py
+panel.py
+
+# macOS
+.DS_Store
