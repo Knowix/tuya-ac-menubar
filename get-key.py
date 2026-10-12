@@ -106,7 +106,7 @@ def main():
     dev = choices[sel]
     info = by_id.get(dev["id"])
     if not dev.get("key"):
-        sys.exit("No local key returned for this device — re-link the app account and retry.")
+        sys.exit("No local key returned for this device. Re-link the app account and retry.")
     # Keep a previously configured ip/version for the same device if the scan missed it.
     old = {}
     if CONFIG.exists():

@@ -40,7 +40,7 @@ def config_path():
 
 CONFIG = config_path()
 VERSION = 3.3
-# Device mapping — the single place to adapt this tool to another Tuya AC.
+# Device mapping: the single place to adapt this tool to another Tuya AC.
 TEMP_SCALE = 10          # device stores temperature in tenths of a degree
 TEMP_MIN, TEMP_MAX = 16, 32
 DP = {"power": 1, "temp_set": 2, "temp_current": 3, "mode": 4, "fan": 5,
@@ -120,7 +120,7 @@ def show():
 def ha():
     """Print everything needed to add this AC to Home Assistant via tuya-local."""
     c = cfg()
-    print("Home Assistant — local control via the 'tuya-local' integration")
+    print("Home Assistant: local control via the 'tuya-local' integration")
     print("=" * 62)
     print("\n1. Install the integration (one click, opens HACS):")
     print("   https://my.home-assistant.io/redirect/hacs_repository/"
@@ -132,7 +132,7 @@ def ha():
     print(f"   Device ID           {c['id']}")
     print(f"   Local key           {c['key']}")
     print(f"   Protocol version    {c.get('version') or VERSION}")
-    print("\n   The local key controls your AC — don't post it anywhere public.")
+    print("\n   The local key controls your AC, so don't post it anywhere public.")
     print("   tuya-local auto-detects the device type. If it asks you to pick,")
     print("   choose a generic Tuya air conditioner, or use the profile in")
     print("   homeassistant/ from this repo.")

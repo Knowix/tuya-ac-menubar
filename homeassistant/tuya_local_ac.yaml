@@ -1,6 +1,6 @@
 # Reference tuya-local device profile for a Sendo / generic Tuya wall-split AC
 # (Tuya protocol 3.3). Most Tuya ACs are auto-detected by tuya-local, so you
-# usually do NOT need this file — just add the integration and enter your
+# usually do NOT need this file. Just add the integration and enter your
 # host / device id / local key. Use this only if your unit isn't recognised,
 # or if temperature or fan values come out wrong.
 #

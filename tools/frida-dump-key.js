@@ -1,5 +1,5 @@
 // Dump Tuya device id + local key from a running Tuya-SDK Android app
-// (Smart Life, or a vendor app such as Sendo Smart) with Frida — no cloud
+// (Smart Life, or a vendor app such as Sendo Smart) with Frida. No cloud
 // account needed. This is the method used to recover the Sendo key.
 //
 // Prerequisites
@@ -53,7 +53,7 @@ function dumpKeys() {
     });
   });
   if (found === 0) {
-    console.log("[tuya-key] no DeviceBean instances yet — open the device list in the app, then wait.");
+    console.log("[tuya-key] no DeviceBean instances yet. Open the device list in the app, then wait.");
   } else {
     console.log("[tuya-key] done (" + found + " device(s)).");
   }

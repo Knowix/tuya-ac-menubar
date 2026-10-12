@@ -1,7 +1,7 @@
 """Tests for get-key.py.
 
 Run from the repo root:  uvx pytest tests
-No Tuya account, network or real tinytuya needed — the cloud and LAN scan are faked.
+No Tuya account, network or real tinytuya needed: the cloud and LAN scan are faked.
 """
 import importlib.util
 import json
@@ -123,7 +123,7 @@ def test_config_is_owner_only_from_the_moment_it_is_created(run, monkeypatch):
     """The local key must never sit in a file other users can read, even briefly.
 
     With every chmod disabled and no umask, the file can only end up 0600 if it
-    was created that way — "write, then chmod" leaves it world-readable here.
+    was created that way. "Write, then chmod" leaves it world-readable here.
     """
     monkeypatch.setattr(os, "chmod", lambda *args, **kwargs: None)
     monkeypatch.setattr(os, "fchmod", lambda *args, **kwargs: None)
