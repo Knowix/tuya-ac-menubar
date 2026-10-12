@@ -46,7 +46,8 @@ through):
 4. Copy the project's **Access ID** (API key) and **Access Secret** (API secret), plus any one linked **Device ID**.
 
 The script prompts for those (or read them from `TUYA_API_REGION`, `TUYA_API_KEY`,
-`TUYA_API_SECRET`, `TUYA_API_DEVICE_ID` to run unattended), lists your air conditioners, and saves
+`TUYA_API_SECRET`, `TUYA_API_DEVICE_ID`, plus `TUYA_AC_PICK` if you have several ACs, to run
+unattended), lists your air conditioners, and saves
 the config with `chmod 600`.
 
 > The local key changes whenever the device is **re-paired** — if control ever stops working, just
@@ -59,7 +60,7 @@ The key is also held by the vendor's Android app. With a rooted device/emulator 
 in, dump it with [Frida](https://frida.re/) — this is how the Sendo key was recovered:
 
 ```bash
-frida -U -f com.sendo_smart -l tools/frida-dump-key.js --no-pause
+frida -U -f com.sendo_smart -l tools/frida-dump-key.js
 ```
 
 See [`tools/frida-dump-key.js`](tools/frida-dump-key.js) for the full prerequisites (**use Frida
@@ -151,6 +152,10 @@ If your unit isn't auto-detected, or temperature/fan values look wrong, copy
 [`homeassistant/tuya_local_ac.yaml`](homeassistant/tuya_local_ac.yaml) into
 `custom_components/tuya_local/devices/` on your HA box, restart, and pick **"Air conditioner (Sendo)"**.
 
+> **One connection at a time.** As tuya-local itself notes, *"many Tuya devices seem to support only
+> one local connection."* While Home Assistant holds that connection, the menu bar app and `ac` may
+> show the AC as offline. If that happens, control it through Home Assistant only.
+
 ---
 
 ## Using a different Tuya AC
@@ -168,8 +173,11 @@ The datapoint (DP) map at the top of [`ac.py`](ac.py) matches a common Tuya AC l
 | 102| sleep | boolean |
 
 Run `ac raw` to see your device's actual datapoints. If yours differ (some ACs use whole degrees on
-dp2, or different mode/fan enums), edit the `DP`, `MODES`, `FANS`, and `TEMP_SCALE` constants in
-`ac.py` and the `modes` / `fans` arrays in `SendoAC.swift`.
+dp2, or different mode/fan enums), edit the constants at the top of `ac.py` — `DP`, `TEMP_SCALE`,
+`TEMP_MIN`/`TEMP_MAX`, `MODES`, `FANS`. That's the only place the device mapping lives: the menu bar
+app reads state through `ac json` and sends commands through the `ac` CLI. If you change the mode or
+fan *values*, also update the `modes` / `fans` arrays in `TuyaAC.swift`, which hold the chip labels
+and icons, then rebuild.
 
 ---
 
@@ -177,9 +185,9 @@ dp2, or different mode/fan enums), edit the `DP`, `MODES`, `FANS`, and `TEMP_SCA
 
 ```
  Menu bar app (SwiftUI)  ─┐
-                          ├─►  ac.py (tinytuya)  ──LAN, Tuya 3.3──►  AC
+                          ├─►  ac.py (tinytuya)  ──LAN, Tuya 3.x──►  AC
  ac CLI  ─────────────────┘
- Home Assistant  ──tuya-local──LAN, Tuya 3.3───────────────────►   AC
+ Home Assistant  ──tuya-local──LAN, Tuya 3.x───────────────────►   AC
 ```
 
 No traffic leaves your network. The vendor app and cloud are only needed once, to obtain the local key.

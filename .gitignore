@@ -3,10 +3,11 @@ config.json
 .config/
 
 # Build artifacts
-SendoAC
+TuyaAC
 *.app/
 *.o
 *.swiftmodule
+__pycache__/
 
 # Superseded prototypes (kept locally, not part of the project)
 menubar.py

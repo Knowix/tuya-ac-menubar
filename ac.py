@@ -12,14 +12,17 @@
   ac fan  <low|mid|high|auto|mute>
   ac eco  on|off         energy-saving
   ac sleep on|off        sleep mode
-  ac set  <dp> <value>   raw datapoint escape hatch
+  ac set  <dp> <value>   raw datapoint escape hatch (dp number or name)
   ac raw                 dump every raw datapoint
+  ac json                current state as JSON (used by the menu bar app)
   ac ha                  print Home Assistant (tuya-local) setup details
 
 Config (device id, ip, local key) lives in ~/.config/tuya-ac/config.json.
 Override with the TUYA_AC_CONFIG environment variable.
 """
-import json, os, sys
+import json
+import os
+import sys
 from pathlib import Path
 
 
@@ -37,11 +40,14 @@ def config_path():
 
 CONFIG = config_path()
 VERSION = 3.3
+# Device mapping — the single place to adapt this tool to another Tuya AC.
 TEMP_SCALE = 10          # device stores temperature in tenths of a degree
+TEMP_MIN, TEMP_MAX = 16, 32
 DP = {"power": 1, "temp_set": 2, "temp_current": 3, "mode": 4, "fan": 5,
       "eco": 8, "sleep": 102}
 MODES = ["cold", "hot", "wet", "wind", "auto"]
 FANS = ["mute", "low", "mid", "high", "auto", "strength", "mid_low", "mid_high"]
+ON, OFF = ("on", "true", "1"), ("off", "false", "0")
 
 
 def cfg():
@@ -53,14 +59,18 @@ def cfg():
 def device():
     import tinytuya
     c = cfg()
-    d = tinytuya.Device(c["id"], c["ip"], c["key"], version=VERSION)
-    d.set_socketTimeout(5)
-    return d
+    # tinytuya's defaults (5 retries, 5 s apart) make an offline AC hang ~50 s;
+    # fail within a few seconds instead.
+    return tinytuya.Device(c["id"], c["ip"], c["key"],
+                           version=float(c.get("version") or VERSION),
+                           connection_timeout=5,
+                           connection_retry_limit=2,
+                           connection_retry_delay=1)
 
 
 def read():
     r = device().status()
-    if "dps" not in r:
+    if not isinstance(r, dict) or "dps" not in r:
         sys.exit(f"Device error: {r}  (is the AC on the LAN at the configured IP?)")
     return r["dps"]
 
@@ -71,20 +81,40 @@ def send(dp, value):
         sys.exit(f"Device error: {r}")
 
 
-def show():
+def state():
+    """Current state in friendly units, independent of the device's datapoints."""
     dps = read()
-    g = lambda n: dps.get(str(DP[n]))
-    t = g("temp_set")
-    c = g("temp_current")
-    print(f"power        {'ON' if g('power') else 'off'}")
-    print(f"mode         {g('mode')}")
-    print(f"fan          {g('fan')}")
-    if t is not None:
-        print(f"target       {t / TEMP_SCALE:.1f} °C")
-    if c is not None:
-        print(f"current      {c / TEMP_SCALE:.1f} °C")
-    print(f"eco          {'on' if g('eco') else 'off'}")
-    print(f"sleep        {'on' if g('sleep') else 'off'}")
+
+    def get(name):
+        return dps.get(str(DP[name]))
+
+    def degrees(raw):
+        return None if raw is None else raw / TEMP_SCALE
+
+    return {
+        "power": bool(get("power")),
+        "mode": get("mode"),
+        "fan": get("fan"),
+        "target": degrees(get("temp_set")),
+        "current": degrees(get("temp_current")),
+        "eco": bool(get("eco")),
+        "sleep": bool(get("sleep")),
+        "min_temp": TEMP_MIN,
+        "max_temp": TEMP_MAX,
+    }
+
+
+def show():
+    s = state()
+    print(f"power        {'ON' if s['power'] else 'off'}")
+    print(f"mode         {s['mode']}")
+    print(f"fan          {s['fan']}")
+    if s["target"] is not None:
+        print(f"target       {s['target']:.1f} °C")
+    if s["current"] is not None:
+        print(f"current      {s['current']:.1f} °C")
+    print(f"eco          {'on' if s['eco'] else 'off'}")
+    print(f"sleep        {'on' if s['sleep'] else 'off'}")
 
 
 def ha():
@@ -101,8 +131,9 @@ def ha():
     print(f"   Host (IP address)   {c['ip']}")
     print(f"   Device ID           {c['id']}")
     print(f"   Local key           {c['key']}")
-    print(f"   Protocol version    {VERSION}")
-    print("\n   tuya-local auto-detects the device type. If it asks you to pick,")
+    print(f"   Protocol version    {c.get('version') or VERSION}")
+    print("\n   The local key controls your AC — don't post it anywhere public.")
+    print("   tuya-local auto-detects the device type. If it asks you to pick,")
     print("   choose a generic Tuya air conditioner, or use the profile in")
     print("   homeassistant/ from this repo.")
 
@@ -122,6 +153,8 @@ def main(argv):
         print(__doc__)
     elif cmd == "raw":
         print(json.dumps(read(), indent=2))
+    elif cmd == "json":
+        print(json.dumps(state()))
     elif cmd in ("status", "show"):
         show()
     elif cmd == "ha":
@@ -130,20 +163,32 @@ def main(argv):
         send(DP["power"], cmd == "on")
         print(f"power = {cmd}")
     elif cmd == "temp" and rest:
-        c = float(rest[0])
-        if not 16 <= c <= 32:
-            sys.exit("temperature must be between 16 and 32 °C")
-        send(DP["temp_set"], int(round(c * TEMP_SCALE)))
+        try:
+            c = float(rest[0])
+        except ValueError:
+            sys.exit(f"temperature must be a number, got {rest[0]!r}")
+        if not TEMP_MIN <= c <= TEMP_MAX:
+            sys.exit(f"temperature must be between {TEMP_MIN} and {TEMP_MAX} °C")
+        send(DP["temp_set"], round(c * TEMP_SCALE))
         print(f"target = {c:.1f} °C")
     elif cmd == "mode" and rest:
         enum("mode", MODES, rest[0])
     elif cmd == "fan" and rest:
         enum("fan", FANS, rest[0])
     elif cmd in ("eco", "sleep") and rest:
-        send(DP[cmd], rest[0] in ("on", "true", "1"))
-        print(f"{cmd} = {rest[0]}")
+        value = rest[0].lower()
+        if value not in ON + OFF:
+            sys.exit(f"{cmd} must be on or off")
+        send(DP[cmd], value in ON)
+        print(f"{cmd} = {'on' if value in ON else 'off'}")
     elif cmd == "set" and len(rest) == 2:
-        dp, raw = rest
+        name, raw = rest
+        if name in DP:
+            dp = DP[name]
+        elif name.isdigit():
+            dp = int(name)
+        else:
+            sys.exit(f"unknown datapoint {name!r}: use a number or one of {', '.join(DP)}")
         v = raw
         if raw.lower() in ("true", "on"):
             v = True
@@ -154,7 +199,7 @@ def main(argv):
                 v = int(raw)
             except ValueError:
                 pass
-        send(int(dp), v)
+        send(dp, v)
         print(f"dp{dp} = {v}")
     else:
         sys.exit(__doc__)

@@ -24,6 +24,7 @@ Run it
   # or non-interactive via environment:
   TUYA_API_REGION=eu TUYA_API_KEY=xxx TUYA_API_SECRET=xxx \
     TUYA_API_DEVICE_ID=bfxxxx uv run get-key.py
+  # with several ACs, also set TUYA_AC_PICK=<number from the list>
 
 Region is the data centre you chose: us | eu | cn | in
 """
@@ -37,18 +38,25 @@ CONFIG = Path(os.environ.get("TUYA_AC_CONFIG") or
               Path.home() / ".config" / "tuya-ac" / "config.json")
 
 
-def ask(label, env, secret=False):
+def ask(label, env, secret=False, required=True):
     v = os.environ.get(env)
-    if v:
+    if v and v.strip():
         return v.strip()
     try:
         reader = getpass.getpass if secret else input
-        return reader(f"{label}: ").strip()
+        v = reader(f"{label}: ").strip()
     except (EOFError, KeyboardInterrupt):
-        sys.exit("\nCancelled (set the TUYA_API_* environment variables to run non-interactively).")
+        sys.exit(f"\nCancelled (set {env} and the other TUYA_* environment variables "
+                 "to run non-interactively).")
+    if required and not v:
+        sys.exit(f"{label.strip()} is required.")
+    return v
 
 
 def main():
+    if any(a in ("-h", "--help", "help") for a in sys.argv[1:]):
+        print(__doc__)
+        return
     import tinytuya
 
     region = ask("Tuya API region (us/eu/cn/in)", "TUYA_API_REGION")
@@ -66,13 +74,12 @@ def main():
     if not devices:
         sys.exit("No devices returned. Link the Smart Life app account to the cloud project.")
 
-    print("Scanning the LAN for device IPs (a few seconds) ...")
-    lan = tinytuya.deviceScan(False)
-    by_id = {}
-    for info in lan.values():
-        did = info.get("gwId") or info.get("id")
-        if did:
-            by_id[did] = info
+    print(f"Scanning the LAN for device IPs (~{tinytuya.SCANTIME} seconds) ...")
+    try:
+        by_id = tinytuya.deviceScan(False, poll=False, byID=True)
+    except OSError as e:
+        print(f"Warning: LAN scan failed ({e}); continuing without IPs.")
+        by_id = {}
 
     acs = [d for d in devices if d.get("category") == "kt"]  # 'kt' = air conditioner
     choices = acs or devices
@@ -86,33 +93,46 @@ def main():
     if len(choices) == 1:
         sel = 0
     else:
-        raw = ask("\nPick device number", "TUYA_AC_PICK") or "0"
+        raw = ask("\nPick device number", "TUYA_AC_PICK", required=False) or "0"
         try:
             sel = int(raw)
-            choices[sel]
-        except (ValueError, IndexError):
+        except ValueError:
+            sel = -1
+        if not 0 <= sel < len(choices):
             sys.exit(f"Invalid selection: {raw}")
 
     dev = choices[sel]
     info = by_id.get(dev["id"])
     if not dev.get("key"):
         sys.exit("No local key returned for this device — re-link the app account and retry.")
+    # Keep a previously configured ip/version for the same device if the scan missed it.
+    old = {}
+    if CONFIG.exists():
+        try:
+            old = json.loads(CONFIG.read_text())
+        except (OSError, ValueError):
+            old = {}
+        if old.get("id") != dev["id"]:
+            old = {}
     if not info:
-        print("\nWarning: device not seen on this LAN. Writing config without an IP; "
-              "fill in 'ip' once the AC is online, or re-run.")
+        info = {k: old[k] for k in ("ip", "version") if old.get(k)}
+        if info.get("ip"):
+            print(f"\nDevice not seen on this LAN; keeping the existing ip {info['ip']}.")
+        else:
+            print("\nWarning: device not seen on this LAN. Writing config without an IP; "
+                  "fill in 'ip' once the AC is online, or re-run.")
 
     config = {
         "id": dev["id"],
-        "ip": (info or {}).get("ip", ""),
+        "ip": info.get("ip", ""),
         "key": dev["key"],
-        "version": float((info or {}).get("version", 3.3) or 3.3),
+        "version": float(info.get("version") or 3.3),
     }
     CONFIG.parent.mkdir(parents=True, exist_ok=True)
-    CONFIG.write_text(json.dumps(config, indent=2) + "\n")
-    try:
-        CONFIG.chmod(0o600)
-    except OSError:
-        pass
+    fd = os.open(CONFIG, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        os.fchmod(fd, 0o600)  # also tighten a pre-existing file
+        f.write(json.dumps(config, indent=2) + "\n")
     print(f"\nWrote {CONFIG} (chmod 600, keeps your local key private).")
     print("Now test it:   uv run ac.py      (or `ac` if symlinked)")
 

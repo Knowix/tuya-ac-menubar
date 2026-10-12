@@ -11,14 +11,16 @@
 //       # push the matching frida-server-16.x to /data/local/tmp and run it as root
 //
 // Run
-//   frida -U -f com.sendo_smart -l tools/frida-dump-key.js --no-pause
+//   frida -U -f com.sendo_smart -l tools/frida-dump-key.js
+//   # (frida-tools 12+ resumes spawned apps itself; --no-pause no longer exists)
 //   # or attach to the already-open app:
 //   frida -U com.sendo_smart -l tools/frida-dump-key.js
 //
 // Replace com.sendo_smart with your app's package (adb shell pm list packages).
 // Output lines look like:
 //   [tuya-key] name=Living Room AC  id=bfxxxxxxxxxxxxxxxxxxxx  local_key=xxxxxxxxxxxxxxxx
-// Put id + local_key into ~/.config/tuya-ac/config.json (ip from `ac raw`/router).
+// Put id + local_key into ~/.config/tuya-ac/config.json (ip from your router's
+// client list, or `uvx tinytuya scan`).
 
 "use strict";
 
@@ -55,15 +57,25 @@ function dumpKeys() {
   } else {
     console.log("[tuya-key] done (" + found + " device(s)).");
   }
+  return found;
 }
 
-Java.perform(function () {
-  // Give the app a few seconds to build its device list, then dump, and retry
-  // a couple of times in case the list loads late.
+// Poll until the app has built its device list (logging in / opening the
+// device list can take a while), then stop. Gives up after ~3 minutes.
+if (typeof Java === "undefined" || !Java.available) {
+  console.log("[tuya-key] No Java bridge here. Use Frida 16.x (17 removed the built-in " +
+              "bridge) and target the Android app's process.");
+} else {
   var tries = 0;
   var timer = setInterval(function () {
     tries++;
-    dumpKeys();
-    if (tries >= 3) clearInterval(timer);
+    Java.perform(function () {
+      if (dumpKeys() > 0) {
+        clearInterval(timer);
+      } else if (tries >= 30) {
+        clearInterval(timer);
+        console.log("[tuya-key] Gave up after ~3 minutes. Log in, open the device list, then re-run.");
+      }
+    });
   }, 6000);
-});
+}
