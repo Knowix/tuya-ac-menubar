@@ -181,6 +181,14 @@ and icons, then rebuild.
 
 ---
 
+## Development
+
+```bash
+uvx pytest tests      # get-key.py tests: cloud and LAN scan are faked, no account needed
+```
+
+---
+
 ## How it works
 
 ```

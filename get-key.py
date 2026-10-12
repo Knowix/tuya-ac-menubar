@@ -88,7 +88,9 @@ def main():
     for i, d in enumerate(choices):
         info = by_id.get(d["id"])
         ip = info["ip"] if info else "(not found on this LAN)"
-        print(f"  [{i}]  {d.get('name', '?')[:24]:24}  {d.get('category', '?'):4}  {ip}")
+        name = (d.get("name") or "?")[:24]
+        category = d.get("category") or "?"
+        print(f"  [{i}]  {name:24}  {category:4}  {ip}")
 
     if len(choices) == 1:
         sel = 0

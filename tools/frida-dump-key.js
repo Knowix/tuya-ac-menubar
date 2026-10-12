@@ -12,7 +12,7 @@
 //
 // Run
 //   frida -U -f com.sendo_smart -l tools/frida-dump-key.js
-//   # (frida-tools 12+ resumes spawned apps itself; --no-pause no longer exists)
+//   # (the spawned app resumes on its own)
 //   # or attach to the already-open app:
 //   frida -U com.sendo_smart -l tools/frida-dump-key.js
 //
