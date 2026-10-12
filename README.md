@@ -27,32 +27,47 @@ power, a temperature stepper, mode (Cool / Heat / Auto / Fan / Dry), fan speed, 
 
 ---
 
-## 1. Get your device's local key
+## 1. Get your local key — automatically
 
-This is the only non-trivial step. The local key lives in the Tuya cloud account the AC is paired
-to. The standard, reliable way to retrieve it:
+The one non-trivial step is the device's **local key**. The included
+[`get-key.py`](get-key.py) does it for you: it pulls the key from the Tuya cloud, scans your LAN
+for the device's IP and protocol version, and writes `~/.config/tuya-ac/config.json`.
 
-1. Pair the AC in the **Smart Life** app (or the vendor app, if it's a Tuya account).
-2. Create a free **[Tuya IoT Platform](https://iot.tuya.com/)** developer account and link your
-   Smart Life account to it (Cloud → Development → link app account via QR).
-3. Run the tinytuya wizard, which reads the id / IP / local key for every device on the account:
-   ```bash
-   uvx tinytuya wizard
-   ```
-   Follow [tinytuya's setup guide](https://github.com/jasonacox/tinytuya#setup-wizard) for the
-   API-key steps. The wizard writes `devices.json` / `snapshot.json` with the values you need.
+```bash
+uv run get-key.py
+```
 
-> **Advanced alternative — pull the key from the app.** If you can't use the cloud route, the key
-> is also held by the vendor's Android app. Run the app in a rooted Android emulator and hook the
-> Tuya SDK with [Frida](https://frida.re/) to dump the local key. This is how the Sendo key was
-> recovered. It's fiddly and app-specific; the cloud wizard above is recommended.
+It needs free Tuya IoT Platform API credentials (a one-time account setup the script walks you
+through):
 
-The local key changes whenever the device is **re-paired**, so if control stops working, re-run the
-wizard.
+1. Pair the AC in the **Smart Life** app.
+2. Create a free account at **[iot.tuya.com](https://iot.tuya.com/)** and a Cloud Project (choose your region's data centre).
+3. In the project: **Devices → Link App Account**, and scan the QR with Smart Life.
+4. Copy the project's **Access ID** (API key) and **Access Secret** (API secret), plus any one linked **Device ID**.
 
----
+The script prompts for those (or read them from `TUYA_API_REGION`, `TUYA_API_KEY`,
+`TUYA_API_SECRET`, `TUYA_API_DEVICE_ID` to run unattended), lists your air conditioners, and saves
+the config with `chmod 600`.
 
-## 2. Configure
+> The local key changes whenever the device is **re-paired** — if control ever stops working, just
+> re-run `get-key.py`.
+
+<details>
+<summary><b>No cloud account? Extract the key straight from the app (Frida)</b></summary>
+
+The key is also held by the vendor's Android app. With a rooted device/emulator and the app logged
+in, dump it with [Frida](https://frida.re/) — this is how the Sendo key was recovered:
+
+```bash
+frida -U -f com.sendo_smart -l tools/frida-dump-key.js --no-pause
+```
+
+See [`tools/frida-dump-key.js`](tools/frida-dump-key.js) for the full prerequisites (**use Frida
+16.x** — 17 removed the Java bridge). Put the printed `id` + `local_key` into the config below.
+</details>
+
+<details>
+<summary><b>Or write the config by hand</b></summary>
 
 ```bash
 mkdir -p ~/.config/tuya-ac
@@ -70,7 +85,12 @@ $EDITOR ~/.config/tuya-ac/config.json
 }
 ```
 
-Verify:
+`ip` comes from your router; `version` is almost always `3.3`.
+</details>
+
+---
+
+## 2. Verify
 
 ```bash
 uv run ac.py          # should print power / mode / fan / target / current
