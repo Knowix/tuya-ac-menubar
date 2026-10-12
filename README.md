@@ -1,15 +1,32 @@
-# Tuya AC — native macOS menu bar control + Home Assistant
+<div align="center">
 
-Control a **Tuya-based air conditioner** (Sendo, and most other "works-only-with-its-own-app"
-Wi-Fi ACs that are rebadged Tuya modules) from your Mac and from Home Assistant — **entirely over
-your LAN, no cloud**.
+# Tuya AC
 
-- 🧊 **Native macOS menu bar app** built in SwiftUI with real macOS 26 *Liquid Glass* controls.
-- ⌨️ **`ac` command-line tool** (Python + [tinytuya](https://github.com/jasonacox/tinytuya)).
-- 🏠 **One-click Home Assistant** setup via the [`tuya-local`](https://github.com/make-all/tuya-local) integration.
+**A native macOS menu bar app for Tuya-based air conditioners.**<br>
+Liquid Glass controls, a command-line tool, and one-click Home Assistant setup — all over your LAN, no cloud.
 
-The menu bar shows the mode and target temperature at a glance; click it for a glass panel with
-power, a temperature stepper, mode (Cool / Heat / Auto / Fan / Dry), fan speed, and Eco / Sleep.
+[![tests](https://github.com/Knowix/tuya-ac-menubar/actions/workflows/tests.yml/badge.svg)](https://github.com/Knowix/tuya-ac-menubar/actions/workflows/tests.yml)
+![macOS 26+](https://img.shields.io/badge/macOS-26%2B-000000?logo=apple&logoColor=white)
+![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)
+![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-tuya--local-41BDF5?logo=homeassistant&logoColor=white)](https://github.com/make-all/tuya-local)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+</div>
+
+## What you get
+
+- **Menu bar app** — the current mode and set temperature at a glance. Click for a glass panel with
+  power, a temperature stepper, mode (Cool / Heat / Auto / Fan / Dry), fan speed, Eco and Sleep.
+- **`ac` command line** — `ac on`, `ac temp 22`, `ac mode cold`… scriptable, and the engine behind the app.
+- **Home Assistant** — local control through [`tuya-local`](https://github.com/make-all/tuya-local),
+  installed with one click; `ac ha` prints the values to paste.
+- **Automatic key retrieval** — `get-key.py` fetches your device's local key from the Tuya cloud and
+  writes the config for you.
+- **Local only** — commands go straight to the AC on your network; the cloud is used once, for the key.
+
+Works with Sendo and most other "only works with its own app" Wi-Fi air conditioners that are
+rebadged Tuya modules.
 
 > **Why this exists:** some ACs ship with a locked-down vendor app and no HomeKit / open API — but
 > the hardware underneath is a standard Tuya Wi-Fi module speaking the local Tuya protocol. Once you
